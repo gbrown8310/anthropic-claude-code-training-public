@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 import { Payment } from "@/data/types"
-import { EXPORT_COLUMNS, exportFilename, toCsv } from "./csv"
+import {
+  DEFAULT_EXPORT_COLUMNS,
+  EXPORT_COLUMNS,
+  exportFilename,
+  parseExportColumns,
+  toCsv,
+} from "./csv"
 
 /**
  * The export is the file ops hands to a merchant, so a broken cell is a
@@ -76,10 +82,50 @@ describe("toCsv", () => {
   })
 })
 
+describe("parseExportColumns", () => {
+  it("keeps a subset of columns in the order requested", () => {
+    const columns = parseExportColumns("amount,id,currency")
+    expect(columns).toEqual(["amount", "id", "currency"])
+    expect(toCsv([payment], columns!)).toBe(
+      ["amount,id,currency", "$250.00,pay_0001,USD"].join("\n"),
+    )
+  })
+
+  it("leaves the card last four out when no columns are requested", () => {
+    const columns = parseExportColumns(null)
+    expect(columns).toEqual([...DEFAULT_EXPORT_COLUMNS])
+    expect(columns).not.toContain("last4")
+
+    const csv = toCsv([payment], columns!)
+    expect(csv.split("\n")[0].split(",")).not.toContain("last4")
+    expect(csv).not.toContain("4242")
+  })
+
+  it("rejects an empty selection instead of producing an empty file", () => {
+    expect(parseExportColumns("")).toBeNull()
+    expect(parseExportColumns(" , ")).toBeNull()
+  })
+
+  it("rejects any name outside the allowlist", () => {
+    expect(parseExportColumns("id,password")).toBeNull()
+    expect(parseExportColumns("id; DROP TABLE payments")).toBeNull()
+  })
+
+  it("drops repeated names", () => {
+    expect(parseExportColumns("id,id,amount")).toEqual(["id", "amount"])
+  })
+})
+
 describe("exportFilename", () => {
   it("stamps the UTC date, so two exports on the same day collide by design", () => {
     expect(exportFilename(new Date("2026-03-14T23:00:00.000Z"))).toBe(
       "payments-2026-03-14.csv",
+    )
+  })
+
+  it("names the scope when one is given", () => {
+    expect(exportFilename(new Date("2026-08-13T12:00:00.000Z"), "disputed")).toBe(
+      "payments-disputed-2026-08-13.csv",
     )
   })
 })
