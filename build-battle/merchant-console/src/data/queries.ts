@@ -77,8 +77,8 @@ export function sortPayments(
   const factor = direction === "asc" ? 1 : -1
   return [...payments].sort((a, b) => {
     if (sort === "amount") {
-      // Sort by the formatted amount so the order matches what the table shows.
-      return String(a.amount).localeCompare(String(b.amount)) * factor
+      // Minor units are integers, so compare them as numbers, not text.
+      return (a.amount - b.amount) * factor
     }
     return a.createdAt.localeCompare(b.createdAt) * factor
   })
@@ -103,6 +103,11 @@ export function queryPayments(filters: PaymentFilters) {
   const filtered = filterPayments(filters)
   const sorted = sortPayments(filtered, filters.sort, filters.direction)
   return paginate(sorted, filters.page, filters.pageSize)
+}
+
+/** Every payment in the store, unfiltered: the "all payments" export count. */
+export function totalPayments(): number {
+  return store.payments.length
 }
 
 export function paymentById(id: string) {

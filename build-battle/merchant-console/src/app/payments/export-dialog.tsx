@@ -48,6 +48,8 @@ export function ExportDialog({
     () => new Set(defaultColumns),
   )
   const [scope, setScope] = useState<Scope>("filtered")
+  const [downloading, setDownloading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const rowCount = scope === "all" ? totalCount : filteredCount
   // Keep the file's column order stable regardless of click order.
@@ -61,6 +63,7 @@ export function ExportDialog({
   })()
 
   const toggle = (column: ExportColumn) => {
+    setError(null)
     setSelected((current) => {
       const next = new Set(current)
       if (next.has(column)) next.delete(column)
@@ -70,6 +73,34 @@ export function ExportDialog({
   }
 
   const downloadLabel = `Download ${rowCount.toLocaleString()} ${rowCount === 1 ? "row" : "rows"}`
+  const canDownload = chosen.length > 0 && rowCount > 0 && !downloading
+
+  // Fetch rather than a plain link, so a failed export shows a message
+  // instead of saving the error body as a file.
+  const download = async () => {
+    setError(null)
+    setDownloading(true)
+    try {
+      const response = await fetch(href)
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        setError(body?.error ?? "The export failed. Try again.")
+        return
+      }
+      const disposition = response.headers.get("content-disposition") ?? ""
+      const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "payments.csv"
+      const url = URL.createObjectURL(await response.blob())
+      const link = document.createElement("a")
+      link.href = url
+      link.download = filename
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setError("The export failed. Check your connection and try again.")
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   return (
     <Drawer>
@@ -110,7 +141,10 @@ export function ExportDialog({
                     name="export-scope"
                     value={value}
                     checked={scope === value}
-                    onChange={() => setScope(value)}
+                    onChange={() => {
+                      setError(null)
+                      setScope(value)
+                    }}
                     className="size-4 accent-blue-600"
                   />
                   {label}
@@ -148,19 +182,27 @@ export function ExportDialog({
               </p>
             )}
           </fieldset>
+          {rowCount === 0 && (
+            <p className="text-sm text-gray-500">
+              No payments in this scope, so there is nothing to export.
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-500">
+              {error}
+            </p>
+          )}
         </DrawerBody>
         <DrawerFooter>
-          {chosen.length === 0 ? (
-            <Button variant="primary" disabled className="py-1.5">
-              {downloadLabel}
-            </Button>
-          ) : (
-            <Button variant="primary" className="py-1.5" asChild>
-              <a href={href} download>
-                {downloadLabel}
-              </a>
-            </Button>
-          )}
+          <Button
+            variant="primary"
+            className="py-1.5"
+            disabled={!canDownload}
+            isLoading={downloading}
+            onClick={download}
+          >
+            {downloadLabel}
+          </Button>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

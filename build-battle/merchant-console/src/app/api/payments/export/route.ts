@@ -2,6 +2,15 @@ import { filterPayments, parseFilters, sortPayments } from "@/data/queries"
 import { exportFilename, parseExportColumns, toCsv } from "@/lib/csv"
 import { NextRequest, NextResponse } from "next/server"
 
+function sortOnly(params: URLSearchParams): URLSearchParams {
+  const kept = new URLSearchParams()
+  for (const key of ["sort", "direction"]) {
+    const value = params.get(key)
+    if (value) kept.set(key, value)
+  }
+  return kept
+}
+
 /**
  * Exports the payments table as CSV.
  *
@@ -19,8 +28,9 @@ export function GET(request: NextRequest) {
     )
   }
 
+  // "All payments" drops the filters but keeps the order the user is viewing.
   const scopeAll = params.get("scope") === "all"
-  const filters = parseFilters(scopeAll ? new URLSearchParams() : params)
+  const filters = parseFilters(scopeAll ? sortOnly(params) : params)
   const rows = sortPayments(
     filterPayments(filters),
     filters.sort,

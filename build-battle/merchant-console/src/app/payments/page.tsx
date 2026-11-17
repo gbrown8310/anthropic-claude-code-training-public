@@ -10,7 +10,7 @@ import {
 } from "@/components/Table"
 import { StatusBadge } from "@/components/ui/payments/StatusBadge"
 import { merchantById, merchants } from "@/data/merchants"
-import { filterPayments, parseFilters, queryPayments } from "@/data/queries"
+import { parseFilters, queryPayments, totalPayments } from "@/data/queries"
 import { PaymentStatus } from "@/data/types"
 import { DEFAULT_EXPORT_COLUMNS, EXPORT_COLUMNS } from "@/lib/csv"
 import { formatDate } from "@/lib/dates"
@@ -42,7 +42,7 @@ export default async function PaymentsPage({
   const filters = parseFilters(query)
 
   const { rows, total, page, pageCount } = queryPayments(filters)
-  const allPaymentsCount = filterPayments(parseFilters(new URLSearchParams())).length
+  const allPaymentsCount = totalPayments()
 
   const pageHref = (next: number) => {
     const q = new URLSearchParams(query)

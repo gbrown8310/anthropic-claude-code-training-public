@@ -32,7 +32,12 @@ describe("toCsv", () => {
   it("writes a header row followed by one row per payment", () => {
     const lines = toCsv([payment]).split("\n")
     expect(lines).toHaveLength(2)
-    expect(lines[0]).toBe(EXPORT_COLUMNS.join(","))
+    expect(lines[0]).toBe(DEFAULT_EXPORT_COLUMNS.join(","))
+  })
+
+  it("leaves the card last four out unless a caller asks for it", () => {
+    expect(toCsv([payment])).not.toContain("4242")
+    expect(toCsv([payment], EXPORT_COLUMNS).split("\n")[0]).toContain("last4")
   })
 
   it("writes only the requested columns, in the order given", () => {
